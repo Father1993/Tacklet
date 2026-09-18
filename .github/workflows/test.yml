@@ -12,14 +12,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
       - name: Install GTK introspection packages
         run: |
           sudo apt-get update
           sudo apt-get install --yes python3-gi gir1.2-gtk-4.0
       - name: Run checks
         run: |
+          python3 -c "import gi; gi.require_version('Gtk', '4.0'); from gi.repository import Gtk"
           python3 -m compileall -q sticky tacklet.py
           python3 -m unittest discover -s tests -v
