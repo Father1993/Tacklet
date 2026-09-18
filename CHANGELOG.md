@@ -2,6 +2,14 @@
 
 All notable changes to Tacklet are documented in this file.
 
+## 0.1.1 — 2026-09-18
+
+### Fixed
+
+- GitHub Actions now runs with Ubuntu's system Python, which can import the
+  GTK introspection packages installed by the workflow.
+- Storage tests no longer import GTK as an incidental dependency.
+
 ## 0.1.0 — 2026-09-18
 
 ### Added
