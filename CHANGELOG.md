@@ -4,6 +4,9 @@ All notable changes to Tacklet are documented in this file.
 
 ## Unreleased
 
+- Make the note header a 32 px draggable toolbar with clearer add, Settings,
+  and delete icons.
+
 ## 0.1.3 — 2026-09-21
 
 ### Added

@@ -38,11 +38,15 @@ class NoteWindow(Gtk.ApplicationWindow):
     # ---- интерфейс -------------------------------------------------------
 
     def _build_header(self):
-        headerbar = Gtk.HeaderBar()
-        headerbar.set_show_title_buttons(False)
-        headerbar.add_css_class('note-header')
+        # Gtk.HeaderBar has a platform-enforced minimum height. A WindowHandle
+        # keeps native window dragging while allowing a genuinely compact
+        # note toolbar.
+        handle = Gtk.WindowHandle()
+        header = Gtk.Box(spacing=2)
+        header.set_size_request(-1, 32)
+        header.add_css_class('note-header')
 
-        headerbar.pack_start(self._mk_icon_button(
+        header.append(self._mk_icon_button(
             'list-add-symbolic', 'Новая заметка',
             lambda *_: self.app.new_note()))
 
@@ -53,18 +57,19 @@ class NoteWindow(Gtk.ApplicationWindow):
         title.add_css_class('note-title')
         title.connect('changed', self._on_title_changed)
         self._title_entry = title
-        headerbar.set_title_widget(title)
+        header.append(title)
 
-        self._btn_settings = self._mk_icon_button('preferences-system-symbolic',
+        self._btn_settings = self._mk_icon_button('emblem-system-symbolic',
                                                   'Настройки', self._open_settings)
-        headerbar.pack_end(self._btn_settings)
+        header.append(self._btn_settings)
 
-        self._btn_delete = self._mk_icon_button('edit-delete-symbolic',
+        self._btn_delete = self._mk_icon_button('user-trash-symbolic',
                                                 'Удалить заметку',
                                                 lambda *_: self.app.delete_note(self))
-        headerbar.pack_end(self._btn_delete)
+        header.append(self._btn_delete)
 
-        self.set_titlebar(headerbar)
+        handle.set_child(header)
+        self.set_titlebar(handle)
 
     @staticmethod
     def _mk_icon_button(icon, tip, handler):
@@ -136,17 +141,18 @@ class NoteWindow(Gtk.ApplicationWindow):
             f'  color: {text_color};\n'
             '}\n'
             '.note-header {\n'
-            '  min-height: 34px;\n'
+            '  min-height: 32px;\n'
             '  padding: 2px 4px;\n'
+            '  background-color: rgba(255, 255, 255, 0.16);\n'
             '}\n'
             '.note-header-button {\n'
-            '  min-width: 28px;\n'
-            '  min-height: 28px;\n'
-            '  padding: 2px;\n'
+            '  min-width: 26px;\n'
+            '  min-height: 26px;\n'
+            '  padding: 1px;\n'
             '}\n'
             '.note-title {\n'
-            '  min-height: 26px;\n'
-            '  padding: 0 6px;\n'
+            '  min-height: 24px;\n'
+            '  padding: 0 5px;\n'
             '  font-weight: 600;\n'
             '}\n'
         )
