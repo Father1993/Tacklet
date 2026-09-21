@@ -8,7 +8,7 @@ from sticky.note_window import NoteWindow
 
 
 class NoteVisibilityTests(unittest.TestCase):
-    def test_compact_header_button_has_an_explicit_symbolic_image(self):
+    def test_compact_header_button_has_a_bundled_svg_image(self):
         button = SimpleNamespace(
             set_child=lambda child: setattr(button, 'child', child),
             set_tooltip_text=lambda text: setattr(button, 'tooltip', text),
@@ -19,12 +19,11 @@ class NoteVisibilityTests(unittest.TestCase):
             set_pixel_size=lambda size: setattr(image, 'size', size),
         )
         with patch('sticky.note_window.Gtk.Button', return_value=button), \
-             patch('sticky.note_window.Gtk.Image.new_from_icon_name', return_value=image) as create_image:
-            NoteWindow._mk_icon_button('list-add-symbolic', 'Добавить', lambda: None)
+             patch('sticky.note_window.Gtk.Image.new_from_file', return_value=image) as create_image:
+            NoteWindow._mk_icon_button('add', 'Добавить', lambda: None)
 
-        create_image.assert_called_once_with('list-add-symbolic')
+        self.assertTrue(create_image.call_args.args[0].endswith('icons/add.svg'))
         self.assertIs(button.child, image)
-        self.assertEqual(image.size, 16)
 
     def test_hiding_captures_geometry_before_unmapping(self):
         events = []

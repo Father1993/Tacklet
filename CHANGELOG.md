@@ -4,6 +4,13 @@ All notable changes to Tacklet are documented in this file.
 
 ## Unreleased
 
+## 0.1.6 — 2026-09-21
+
+### Fixed
+
+- Bundle compact-header SVG assets so add, Settings, and delete icons do not
+  depend on the host icon theme.
+
 ## 0.1.5 — 2026-09-21
 
 ### Fixed

@@ -1,6 +1,7 @@
 """Окно-стикер с заметкой (GTK4)."""
 
 import gi
+from pathlib import Path
 
 gi.require_version('Gdk', '4.0')
 gi.require_version('Gtk', '4.0')
@@ -9,6 +10,8 @@ from gi.repository import GLib, Gdk, Gtk
 from . import platform
 from .storage import MIN_H, MIN_W
 from .util import clamp, contrast_color
+
+ICON_DIR = Path(__file__).with_name('icons')
 
 
 class NoteWindow(Gtk.ApplicationWindow):
@@ -47,7 +50,7 @@ class NoteWindow(Gtk.ApplicationWindow):
         header.add_css_class('note-header')
 
         header.append(self._mk_icon_button(
-            'list-add-symbolic', 'Новая заметка',
+            'add', 'Новая заметка',
             lambda *_: self.app.new_note()))
 
         title = Gtk.Entry()
@@ -59,11 +62,11 @@ class NoteWindow(Gtk.ApplicationWindow):
         self._title_entry = title
         header.append(title)
 
-        self._btn_settings = self._mk_icon_button('emblem-system-symbolic',
+        self._btn_settings = self._mk_icon_button('settings',
                                                   'Настройки', self._open_settings)
         header.append(self._btn_settings)
 
-        self._btn_delete = self._mk_icon_button('user-trash-symbolic',
+        self._btn_delete = self._mk_icon_button('delete',
                                                 'Удалить заметку',
                                                 lambda *_: self.app.delete_note(self))
         header.append(self._btn_delete)
@@ -74,11 +77,9 @@ class NoteWindow(Gtk.ApplicationWindow):
     @staticmethod
     def _mk_icon_button(icon, tip, handler):
         btn = Gtk.Button()
-        # GTK 4 no longer supports the old automatic button-image API.
-        # Keep the image as an explicit child so symbolic icons render in a
-        # custom Gtk.WindowHandle titlebar too.
-        image = Gtk.Image.new_from_icon_name(icon)
-        image.set_pixel_size(16)
+        # Bundled SVG assets keep the compact titlebar usable even when an
+        # icon theme does not resolve symbolic Gtk.Image names here.
+        image = Gtk.Image.new_from_file(str(ICON_DIR / f'{icon}.svg'))
         btn.set_child(image)
         btn.set_tooltip_text(tip)
         btn.add_css_class('note-header-button')
