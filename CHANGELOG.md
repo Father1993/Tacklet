@@ -4,6 +4,19 @@ All notable changes to Tacklet are documented in this file.
 
 ## Unreleased
 
+## 0.1.3 — 2026-09-21
+
+### Added
+
+- Editable note names and portable JSON import/export from the tray and
+  Settings. Imports add notes without overwriting the current collection.
+
+### Changed
+
+- Replace the crowded note toolbar with a compact header: add note, editable
+  name, Settings, and delete. Colour and default font controls remain in
+  Settings.
+
 ## 0.1.2 — 2026-09-21
 
 ### Fixed

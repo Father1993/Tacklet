@@ -10,7 +10,7 @@ JSON file on your computer.
 
 ## Features
 
-- Multiple resizable notes with a background colour and opacity.
+- Multiple resizable notes with names, a compact header, background colour and opacity.
 - Per-note and selected-text font sizes, restored after restart.
 - Tray menu: show or hide notes, create a note, open settings, or quit.
 - `Alt+S` global show/hide shortcut on Ubuntu GNOME Wayland.
@@ -18,6 +18,7 @@ JSON file on your computer.
 - Safe local persistence: atomic writes, private file permissions, and
   migration from the former `sticky-notes` data directory.
 - Native GTK text selection and context menu for copy/paste.
+- Import and export portable JSON backups from the tray menu or Settings.
 
 ## Requirements
 

@@ -59,6 +59,22 @@ class StorageTests(unittest.TestCase):
                 storage.NOTES_FILE, storage.LEGACY_NOTES_FILE = original
         self.assertEqual([note.text for note in state.notes], ['remember me'])
 
+    def test_portable_export_preserves_note_names(self):
+        with tempfile.TemporaryDirectory() as directory:
+            destination = Path(directory) / 'tacklet-backup.json'
+            original = storage.AppState(notes=[
+                NoteData(title='Идеи', text='Купить молоко'),
+            ])
+            storage.export_file(destination, original)
+            restored = storage.load_file(destination)
+
+        self.assertEqual(restored.notes[0].title, 'Идеи')
+        self.assertEqual(restored.notes[0].text, 'Купить молоко')
+
+    def test_note_name_is_normalized_when_loading(self):
+        note = NoteData.from_dict({'title': '  План  '})
+        self.assertEqual(note.title, 'План')
+
 
 if __name__ == '__main__':
     unittest.main()

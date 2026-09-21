@@ -101,8 +101,10 @@ class StickyApp(Gtk.Application):
             (2, 'Новая заметка', self.new_note),
             (3, 'Новая заметка из буфера (Alt+V)', self.new_note_from_clipboard),
             (4, 'Настройки', self.open_settings),
-            (5, '---', None),
-            (6, 'Завершить программу', self.quit_tray),
+            (5, 'Импортировать заметки…', self.import_notes),
+            (6, 'Экспортировать заметки…', self.export_notes),
+            (7, '---', None),
+            (8, 'Завершить программу', self.quit_tray),
         ])
         self._tray.start()
 
@@ -113,6 +115,64 @@ class StickyApp(Gtk.Application):
 
     def quit_tray(self):
         self.quit()
+
+    def export_notes(self, parent=None):
+        self._flush_save()
+        dialog = Gtk.FileChooserNative.new(
+            'Экспортировать заметки', parent or self._note_parent(),
+            Gtk.FileChooserAction.SAVE, 'Экспортировать', 'Отмена')
+        dialog.set_current_name('tacklet-notes.json')
+        dialog.connect('response', self._on_export_response)
+        dialog.show()
+
+    def _on_export_response(self, dialog, response):
+        if response == Gtk.ResponseType.ACCEPT:
+            destination = dialog.get_file().get_path()
+            if destination:
+                try:
+                    storage.export_file(destination, storage.AppState(self.config, self.notes))
+                except OSError as exc:
+                    self._show_file_error('Не удалось экспортировать заметки.', exc)
+        dialog.destroy()
+
+    def import_notes(self, parent=None):
+        dialog = Gtk.FileChooserNative.new(
+            'Импортировать заметки', parent or self._note_parent(),
+            Gtk.FileChooserAction.OPEN, 'Импортировать', 'Отмена')
+        dialog.connect('response', self._on_import_response)
+        dialog.show()
+
+    def _on_import_response(self, dialog, response):
+        if response == Gtk.ResponseType.ACCEPT:
+            source = dialog.get_file().get_path()
+            if source:
+                try:
+                    imported = storage.load_file(source)
+                    self._add_imported_notes(imported.notes)
+                except ValueError as exc:
+                    self._show_file_error(str(exc))
+        dialog.destroy()
+
+    def _add_imported_notes(self, notes):
+        known_ids = {note.id for note in self.notes}
+        for note in notes:
+            while note.id in known_ids:
+                note.id = storage.NoteData().id
+            known_ids.add(note.id)
+            self.notes.append(note)
+            self.restore_note(note)
+        self.schedule_save()
+
+    def _note_parent(self):
+        return next((window for window in self.get_windows()
+                     if hasattr(window, 'note')), None)
+
+    def _show_file_error(self, message, exc=None):
+        if exc is not None:
+            print('[files]', exc)
+        alert = Gtk.AlertDialog()
+        alert.set_message(message)
+        alert.show(self._note_parent())
 
     # ---- заметки ----------------------------------------------------------
 

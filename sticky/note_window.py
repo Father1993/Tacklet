@@ -8,7 +8,7 @@ from gi.repository import GLib, Gdk, Gtk
 
 from . import platform
 from .storage import MIN_H, MIN_W
-from .util import clamp, contrast_color, hex_from_rgba, rgba_from_hex
+from .util import clamp, contrast_color
 
 
 class NoteWindow(Gtk.ApplicationWindow):
@@ -21,7 +21,7 @@ class NoteWindow(Gtk.ApplicationWindow):
         self._family = None     # семейство системного шрифта (кэш)
         self._tags = {}         # кэш текстовых тегов: размер -> Gtk.TextTag
 
-        self.set_title('Заметка')
+        self.set_title(self.note.title or 'Заметка')
         self.set_default_size(max(note.w, MIN_W), max(note.h, MIN_H))
         self.set_size_request(MIN_W, MIN_H)
         self.set_opacity(clamp(note.opacity, 0.05, 1.0))
@@ -40,34 +40,20 @@ class NoteWindow(Gtk.ApplicationWindow):
     def _build_header(self):
         headerbar = Gtk.HeaderBar()
         headerbar.set_show_title_buttons(False)
+        headerbar.add_css_class('note-header')
 
         headerbar.pack_start(self._mk_icon_button(
             'list-add-symbolic', 'Новая заметка',
             lambda *_: self.app.new_note()))
 
-        self._btn_minus = self._mk_icon_button(
-            'zoom-out-symbolic', 'Уменьшить шрифт\n(выделенный текст или вся заметка)',
-            lambda *_: self.change_font(-1))
-        self._btn_plus = self._mk_icon_button(
-            'zoom-in-symbolic', 'Увеличить шрифт\n(выделенный текст или вся заметка)',
-            lambda *_: self.change_font(1))
-        self._btn_reset = self._mk_icon_button(
-            'edit-clear-all-symbolic', 'Сбросить форматирование выделения',
-            lambda *_: self.reset_format())
-        headerbar.pack_start(self._btn_minus)
-        headerbar.pack_start(self._btn_plus)
-        headerbar.pack_start(self._btn_reset)
-
-        self._color_btn = Gtk.ColorButton()
-        self._color_btn.set_rgba(rgba_from_hex(self.note.color))
-        self._color_btn.set_tooltip_text('Цвет стикера')
-        self._color_btn.connect('color-set', self._on_color_set)
-        headerbar.pack_end(self._color_btn)
-
-        self._btn_toggle = self._mk_icon_button('view-restore-symbolic',
-                                                'Показать/скрыть все заметки (Alt+S)',
-                                                lambda *_: self.app.toggle_all())
-        headerbar.pack_end(self._btn_toggle)
+        title = Gtk.Entry()
+        title.set_text(self.note.title)
+        title.set_placeholder_text('Название заметки')
+        title.set_hexpand(True)
+        title.add_css_class('note-title')
+        title.connect('changed', self._on_title_changed)
+        self._title_entry = title
+        headerbar.set_title_widget(title)
 
         self._btn_settings = self._mk_icon_button('preferences-system-symbolic',
                                                   'Настройки', self._open_settings)
@@ -85,6 +71,7 @@ class NoteWindow(Gtk.ApplicationWindow):
         btn = Gtk.Button()
         btn.set_icon_name(icon)
         btn.set_tooltip_text(tip)
+        btn.add_css_class('note-header-button')
         btn.connect('clicked', handler)
         return btn
 
@@ -120,6 +107,11 @@ class NoteWindow(Gtk.ApplicationWindow):
     def _open_settings(self, *_):
         self.app.open_settings()
 
+    def _on_title_changed(self, entry):
+        self.note.title = entry.get_text().strip()[:120]
+        self.set_title(self.note.title or 'Заметка')
+        self.app.schedule_save()
+
     def focus_editor(self):
         """Передаёт фокус новой заметке после отображения её поверхности."""
         self._view.grab_focus()
@@ -142,6 +134,20 @@ class NoteWindow(Gtk.ApplicationWindow):
             '}\n'
             '.note-text text {\n'
             f'  color: {text_color};\n'
+            '}\n'
+            '.note-header {\n'
+            '  min-height: 34px;\n'
+            '  padding: 2px 4px;\n'
+            '}\n'
+            '.note-header-button {\n'
+            '  min-width: 28px;\n'
+            '  min-height: 28px;\n'
+            '  padding: 2px;\n'
+            '}\n'
+            '.note-title {\n'
+            '  min-height: 26px;\n'
+            '  padding: 0 6px;\n'
+            '  font-weight: 600;\n'
             '}\n'
         )
         self._css.load_from_string(css)
@@ -191,11 +197,6 @@ class NoteWindow(Gtk.ApplicationWindow):
         self._buffer.apply_tag(self._tag_for(size), start, end)
 
     # ---- прочее ----------------------------------------------------------
-
-    def _on_color_set(self, color_button):
-        self.note.color = hex_from_rgba(color_button.get_rgba())
-        self._render_css()
-        self.app.schedule_save()
 
     def _on_close_request(self, *_):
         """Закрытие стикера прячет его, а не удаляет."""

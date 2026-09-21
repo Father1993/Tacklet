@@ -26,6 +26,7 @@ class NoteData:
     """Одна заметка. Поля сохраняются в JSON."""
 
     id: str = field(default_factory=lambda: uuid.uuid4().hex[:8])
+    title: str = ''
     text: str = ''
     x: int = 90
     y: int = 90
@@ -42,6 +43,7 @@ class NoteData:
     def from_dict(cls, data):
         note = cls(
             id=str(data.get('id') or uuid.uuid4().hex[:8]),
+            title=str(data.get('title') or ''),
             text=str(data.get('text') or ''),
             x=_as_int(data.get('x'), 90),
             y=_as_int(data.get('y'), 90),
@@ -59,6 +61,7 @@ class NoteData:
     def to_dict(self):
         return {
             'id': self.id,
+            'title': self.title,
             'text': self.text,
             'x': self.x,
             'y': self.y,
@@ -72,6 +75,7 @@ class NoteData:
         }
 
     def normalize(self):
+        self.title = self.title.strip()[:120]
         self.w = clamp(int(self.w), MIN_W, 4000)
         self.h = clamp(int(self.h), MIN_H, 4000)
         self.opacity = clamp(float(self.opacity), 0.05, 1.0)
@@ -114,23 +118,39 @@ def load():
     """Читает состояние из файла. При любой ошибке возвращает пустое состояние."""
     source = NOTES_FILE if NOTES_FILE.exists() else LEGACY_NOTES_FILE
     try:
-        raw = json.loads(source.read_text(encoding='utf-8'))
-    except (FileNotFoundError, ValueError, OSError):
+        return load_file(source)
+    except ValueError:
         return AppState()
 
+def load_file(source):
+    """Read a Tacklet export and return normalized state or raise ValueError."""
+    try:
+        raw = json.loads(Path(source).read_text(encoding='utf-8'))
+    except (FileNotFoundError, OSError, ValueError) as exc:
+        raise ValueError('Файл не является корректным экспортом Tacklet.') from exc
     if not isinstance(raw, dict):
-        return AppState()
+        raise ValueError('Файл не является корректным экспортом Tacklet.')
     config = AppConfig.from_dict(raw.get('config'))
     raw_notes = raw.get('notes', [])
-    notes = [NoteData.from_dict(d) for d in raw_notes if isinstance(d, dict)] \
-        if isinstance(raw_notes, list) else []
+    if not isinstance(raw_notes, list):
+        raise ValueError('В экспорте Tacklet отсутствует список заметок.')
+    notes = [NoteData.from_dict(d) for d in raw_notes if isinstance(d, dict)]
     return AppState(config=config, notes=notes)
 
 
 def save(state):
     """Атомарно сохраняет состояние (пишет во временный файл, затем переименовывает)."""
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    payload = {
+    _write_payload(NOTES_FILE, _payload(state))
+
+
+def export_file(destination, state):
+    """Write a portable Tacklet backup selected by the user."""
+    _write_payload(Path(destination), _payload(state))
+
+
+def _payload(state):
+    return {
         'version': 1,
         'config': {
             'opacity': state.config.opacity,
@@ -140,7 +160,11 @@ def save(state):
         },
         'notes': [n.to_dict() for n in state.notes],
     }
-    tmp = NOTES_FILE.with_suffix('.tmp')
+
+
+def _write_payload(destination, payload):
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    tmp = destination.with_name(f'.{destination.name}.tmp')
     # Не оставляем читаемый всем пользователям временный файл и подтверждаем
     # запись на диск до атомарного rename: заметки переживают внезапный выход.
     with open(tmp, 'w', encoding='utf-8') as handle:
@@ -148,7 +172,7 @@ def save(state):
         json.dump(payload, handle, ensure_ascii=False, indent=2)
         handle.flush()
         os.fsync(handle.fileno())
-    os.replace(tmp, NOTES_FILE)
+    os.replace(tmp, destination)
 
 
 def _as_int(value, default):

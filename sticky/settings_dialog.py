@@ -41,6 +41,7 @@ class SettingsDialog(Gtk.Window):
         self._build_font(box, app.config.font_size)
         self._build_color(box, app.config.color)
         self._build_hotkey(box, app.config.hotkey_enabled)
+        self._build_import_export(box)
         self._build_actions(box)
 
     # ---- секции ----------------------------------------------------------
@@ -116,6 +117,20 @@ class SettingsDialog(Gtk.Window):
     def _on_hotkey_toggled(self, switch, state):
         # Не показываем включённое состояние, если GNOME не принял настройку.
         return not self.app.apply_hotkey_enabled(state)
+
+    def _build_import_export(self, box):
+        label = Gtk.Label(label='Резервная копия заметок')
+        label.set_xalign(0)
+        box.append(label)
+
+        row = Gtk.Box(spacing=8)
+        import_button = Gtk.Button(label='Импортировать…')
+        import_button.connect('clicked', lambda *_: self.app.import_notes(self))
+        row.append(import_button)
+        export_button = Gtk.Button(label='Экспортировать…')
+        export_button.connect('clicked', lambda *_: self.app.export_notes(self))
+        row.append(export_button)
+        box.append(row)
 
     def _build_actions(self, box):
         row = Gtk.Box(spacing=8)
