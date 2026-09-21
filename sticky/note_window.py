@@ -214,21 +214,31 @@ class NoteWindow(Gtk.ApplicationWindow):
         self.note.hidden = False
         platform.raise_above(self)
         if platform.supports_geometry():
-            GLib.idle_add(self._restore_position)
+            # The X11 surface exists only after GTK has mapped the window.
+            # Restoring on the next idle cycle was sometimes too early, which
+            # let Mutter choose a centred position instead.
+            GLib.timeout_add(100, self._restore_position, 0)
 
     def hide_note(self):
+        self.update_geometry_from_screen()
         self.note.hidden = True
         self.hide()
 
     def finish_hide(self):
+        self.update_geometry_from_screen()
         self.note.hidden = True
         self.hide()
         self.app.schedule_save()
 
-    def _restore_position(self):
+    def _restore_position(self, attempt):
         if self.note.hidden:
             return False
-        platform.move(self, self.note.x, self.note.y)
+        if platform.move(self, self.note.x, self.note.y):
+            return False
+        # XWayland can map the client surface slightly after GTK reports it
+        # visible. Retry briefly instead of accepting the compositor default.
+        if attempt < 3:
+            GLib.timeout_add(100, self._restore_position, attempt + 1)
         return False
 
     def refresh_opacity(self):
@@ -241,7 +251,13 @@ class NoteWindow(Gtk.ApplicationWindow):
         if platform.supports_geometry():
             geometry = platform.geometry(self)
             if geometry:
-                self.note.x, self.note.y, self.note.w, self.note.h = geometry
+                # xdotool reports the outer X11 frame. Its width and height
+                # include GTK's headerbar, whereas Gtk.Window stores its
+                # content size. Keep the two coordinate systems separate so
+                # a note cannot grow after each hide/show cycle.
+                self.note.x, self.note.y = geometry[:2]
+                self.note.w = self.get_size(Gtk.Orientation.HORIZONTAL)
+                self.note.h = self.get_size(Gtk.Orientation.VERTICAL)
                 return
         self.note.w = self.get_size(Gtk.Orientation.HORIZONTAL)
         self.note.h = self.get_size(Gtk.Orientation.VERTICAL)

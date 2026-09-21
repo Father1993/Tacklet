@@ -4,6 +4,8 @@ All notable changes to Tacklet are documented in this file.
 
 ## Unreleased
 
+- Save each note's real XWayland geometry immediately before `Alt+S` hides it
+  and restore after the surface is mapped, preventing a centred reappearance.
 - Start through XWayland by default so note positions restore reliably after
   `Alt+S` and application restarts; add `--wayland` to opt into native Wayland.
 
