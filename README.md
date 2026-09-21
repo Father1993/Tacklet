@@ -14,6 +14,7 @@ JSON file on your computer.
 - Per-note and selected-text font sizes, restored after restart.
 - Tray menu: show or hide notes, create a note, open settings, or quit.
 - `Alt+S` global show/hide shortcut on Ubuntu GNOME Wayland.
+- `Alt+V` creates a new note and pastes plain text from the system clipboard.
 - Safe local persistence: atomic writes, private file permissions, and
   migration from the former `sticky-notes` data directory.
 - Native GTK text selection and context menu for copy/paste.

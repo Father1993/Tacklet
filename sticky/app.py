@@ -2,11 +2,13 @@
 
 import gi
 
+gi.require_version('Gdk', '4.0')
 gi.require_version('Gtk', '4.0')
-from gi.repository import Gio, GLib, Gtk
+from gi.repository import Gdk, Gio, GLib, Gtk
 
 from . import storage
-from .hotkey import GnomeShortcut, toggle_command
+from .hotkey import (GnomeShortcut, new_note_from_clipboard_command,
+                     toggle_command)
 from .note_window import NoteWindow
 from .settings_dialog import SettingsDialog
 from .tray import StatusNotifierItem
@@ -21,7 +23,8 @@ class StickyApp(Gtk.Application):
         self.notes = []
 
         self._save_timer = None
-        self._hotkey = GnomeShortcut(toggle_command(launcher_path))
+        self._hotkey = GnomeShortcut(toggle_command(launcher_path),
+                                     new_note_from_clipboard_command())
         self._settings = None
         self._tray = None
 
@@ -37,6 +40,10 @@ class StickyApp(Gtk.Application):
         new_note_action = Gio.SimpleAction.new('new-note', None)
         new_note_action.connect('activate', lambda *_: self.new_note())
         self.add_action(new_note_action)
+
+        paste_note_action = Gio.SimpleAction.new('new-from-clipboard', None)
+        paste_note_action.connect('activate', lambda *_: self.new_note_from_clipboard())
+        self.add_action(paste_note_action)
 
         preferences_action = Gio.SimpleAction.new('preferences', None)
         preferences_action.connect('activate', lambda *_: self.open_settings())
@@ -92,9 +99,10 @@ class StickyApp(Gtk.Application):
         self._tray.set_menu([
             (1, 'Показать / скрыть все', self.toggle_all),
             (2, 'Новая заметка', self.new_note),
-            (3, 'Настройки', self.open_settings),
-            (4, '---', None),
-            (5, 'Завершить программу', self.quit_tray),
+            (3, 'Новая заметка из буфера (Alt+V)', self.new_note_from_clipboard),
+            (4, 'Настройки', self.open_settings),
+            (5, '---', None),
+            (6, 'Завершить программу', self.quit_tray),
         ])
         self._tray.start()
 
@@ -108,9 +116,10 @@ class StickyApp(Gtk.Application):
 
     # ---- заметки ----------------------------------------------------------
 
-    def new_note(self):
+    def new_note(self, text=''):
         count = len(self.notes)
         note = storage.NoteData(
+            text=text or '',
             x=90 + (count % 8) * 28,
             y=90 + (count % 8) * 28,
             color=self.config.color,
@@ -120,8 +129,30 @@ class StickyApp(Gtk.Application):
         self.notes.append(note)
         window = NoteWindow(self, note)
         window.show_note()
+        GLib.idle_add(window.focus_editor)
         self.schedule_save()
         return note
+
+    def new_note_from_clipboard(self):
+        """Создаёт заметку с текстом из системного буфера обмена GTK4.
+
+        Чтение асинхронное, поэтому не блокирует главный цикл и работает в
+        Wayland без X11-утилит или прямого доступа к буферу другого клиента.
+        """
+        display = Gdk.Display.get_default()
+        if display is None:
+            self.new_note()
+            return
+        clipboard = display.get_clipboard()
+        clipboard.read_text_async(None, self._on_clipboard_text_ready)
+
+    def _on_clipboard_text_ready(self, clipboard, result, *_):
+        try:
+            text = clipboard.read_text_finish(result)
+        except GLib.Error as exc:
+            print('[clipboard] не удалось прочитать текст:', exc)
+            text = None
+        self.new_note(text)
 
     def delete_note(self, window):
         if window.note in self.notes:

@@ -120,6 +120,11 @@ class NoteWindow(Gtk.ApplicationWindow):
     def _open_settings(self, *_):
         self.app.open_settings()
 
+    def focus_editor(self):
+        """Передаёт фокус новой заметке после отображения её поверхности."""
+        self._view.grab_focus()
+        return GLib.SOURCE_REMOVE
+
     # ---- стили -----------------------------------------------------------
 
     def _render_css(self):

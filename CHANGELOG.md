@@ -2,6 +2,12 @@
 
 All notable changes to Tacklet are documented in this file.
 
+## Unreleased
+
+### Added
+
+- `Alt+V` global shortcut to create a note from clipboard text.
+
 ## 0.1.1 — 2026-09-18
 
 ### Fixed
