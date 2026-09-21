@@ -1,4 +1,4 @@
-"""Индикатор в трее через StatusNotifierItem (org.kde.StatusNotifierItem + org.kde.dbusmenu).
+"""Индикатор в трее через StatusNotifierItem и Canonical DBusMenu.
 
 GNOME без расширения «AppIndicator» не показывает трей. Если watcher
 (org.kde.StatusNotifierWatcher) не активен, индикатор просто не
@@ -14,7 +14,11 @@ SNI_PATH = '/StatusNotifierItem'
 MENU_PATH = '/StatusNotifierItem/Menu'
 ICON_NAME = 'accessories-text-editor'
 SNI_IFACE = 'org.kde.StatusNotifierItem'
-DBUSMENU_IFACE = 'org.kde.dbusmenu'
+# Ubuntu AppIndicators implements the well-established Canonical DBusMenu
+# interface.  ``org.kde.dbusmenu`` is not the interface it requests, so a
+# menu exported under that name is invisible even though the tray icon itself
+# is registered correctly.
+DBUSMENU_IFACE = 'com.canonical.dbusmenu'
 PROPS_IFACE = 'org.freedesktop.DBus.Properties'
 
 SNI_XML = (
@@ -32,7 +36,7 @@ SNI_XML = (
 
 MENU_XML = (
     '<node>'
-    '<interface name="org.kde.dbusmenu">'
+    '<interface name="com.canonical.dbusmenu">'
     '<method name="GetLayout">'
     '<arg type="i" direction="in" name="parentId"/>'
     '<arg type="i" direction="in" name="recursionDepth"/>'
@@ -47,6 +51,16 @@ MENU_XML = (
     '<arg type="s" direction="in" name="eventId"/>'
     '<arg type="v" direction="in" name="data"/>'
     '<arg type="u" direction="in" name="timestamp"/></method>'
+    '<method name="GetGroupProperties"><arg type="ai" direction="in" name="ids"/>'
+    '<arg type="as" direction="in" name="propertyNames"/>'
+    '<arg type="a(ia{sv})" direction="out" name="properties"/></method>'
+    '<method name="EventGroup"><arg type="a(isvu)" direction="in" name="events"/>'
+    '<arg type="ai" direction="out" name="idErrors"/></method>'
+    '<method name="AboutToShow"><arg type="i" direction="in" name="id"/>'
+    '<arg type="b" direction="out" name="needUpdate"/></method>'
+    '<method name="AboutToShowGroup"><arg type="ai" direction="in" name="ids"/>'
+    '<arg type="ai" direction="out" name="updatesNeeded"/>'
+    '<arg type="ai" direction="out" name="idErrors"/></method>'
     '<signal name="LayoutUpdated"><arg type="u" name="revision"/>'
     '<arg type="i" name="parent"/></signal>'
     '</interface>'
@@ -227,30 +241,48 @@ class StatusNotifierItem:
         root = GLib.Variant('(ia{sv}av)', (0, root_props, children))
         return GLib.Variant.new_tuple(GLib.Variant('u', 1), root)
 
+    def _item_properties(self, item_id, names=()):
+        """Return the DBusMenu properties requested for one menu item."""
+        if item_id == 0:
+            props = self._menu_props()
+        else:
+            props = None
+            for mid, label, callback in self.menu_items:
+                if mid == item_id:
+                    props = ({'type': GLib.Variant('s', 'separator')}
+                             if label == '---' else {
+                                 'label': GLib.Variant('s', label),
+                                 'enabled': GLib.Variant('b', True),
+                                 'visible': GLib.Variant('b', True),
+                             })
+                    break
+        if props is None:
+            return None
+        return {name: value for name, value in props.items()
+                if not names or name in names}
+
     def _on_menu_call(self, connection, sender, object_path, iface_name,
                       method_name, parameters, invocation):
         if method_name == 'GetLayout':
             invocation.return_value(self._layout())
         elif method_name == 'GetProperty':
             item_id, name = parameters.unpack()
-            value = None
-            for mid, label, callback in self.menu_items:
-                if mid == item_id:
-                    if name in ('label', 'text') and label != '---':
-                        value = GLib.Variant('s', label)
-                    elif name == 'type':
-                        value = GLib.Variant('s', 'separator' if label == '---' else 'standard')
-                    elif name == 'enabled':
-                        value = GLib.Variant('b', True)
-                    elif name == 'visible':
-                        value = GLib.Variant('b', True)
-                    break
+            props = self._item_properties(item_id, (name,))
+            value = props.get(name) if props else None
             if value is None:
                 invocation.return_dbus_error('org.freedesktop.DBus.Error.InvalidArgs',
                                              f'Нет свойства {name}')
             else:
                 invocation.return_value(
                     GLib.Variant.new_tuple(GLib.Variant.new_variant(value)))
+        elif method_name == 'GetGroupProperties':
+            item_ids, names = parameters.unpack()
+            groups = []
+            for item_id in item_ids:
+                props = self._item_properties(item_id, names)
+                if props is not None:
+                    groups.append((item_id, props))
+            invocation.return_value(GLib.Variant('(a(ia{sv}))', (groups,)))
         elif method_name == 'Event':
             item_id, event_id, data, timestamp = parameters.unpack()
             if event_id == 'clicked':
@@ -258,3 +290,14 @@ class StatusNotifierItem:
                     if mid == item_id and callback:
                         callback()
             invocation.return_value(None)
+        elif method_name == 'EventGroup':
+            for item_id, event_id, data, timestamp in parameters.unpack()[0]:
+                if event_id == 'clicked':
+                    for mid, label, callback in self.menu_items:
+                        if mid == item_id and callback:
+                            callback()
+            invocation.return_value(GLib.Variant('(ai)', ([],)))
+        elif method_name == 'AboutToShow':
+            invocation.return_value(GLib.Variant('(b)', (False,)))
+        elif method_name == 'AboutToShowGroup':
+            invocation.return_value(GLib.Variant('(aiai)', ([], [])))
