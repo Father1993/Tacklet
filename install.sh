@@ -20,7 +20,7 @@ Name=Tacklet
 Name[ru]=Tacklet — заметки
 Comment=Lightweight desktop sticky notes
 Comment[ru]=Лёгкие заметки для рабочего стола
-Exec=$DEST/tacklet.py
+Exec=$DEST/tacklet.py --x11
 Icon=accessories-text-editor
 Terminal=false
 Type=Application
@@ -32,6 +32,7 @@ update-desktop-database "$APPS" >/dev/null 2>&1 || true
 
 echo "Tacklet установлен."
 echo "  Запуск из меню приложений или командой: tacklet"
-echo "  Позиции окон сохраняются: tacklet --x11"
+echo "  Позиции окон сохраняются: Tacklet запускается через XWayland по умолчанию"
+echo "  Нативный Wayland при необходимости: tacklet --wayland"
 echo "  Глобальная клавиша Alt+S (показ/скрытие всех заметок)"
 echo "  Данные: ~/.local/share/tacklet/notes.json"

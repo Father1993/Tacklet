@@ -24,20 +24,23 @@ JSON file on your computer.
 - Ubuntu GNOME on Wayland.
 - Python 3.10+, `python3-gi`, and `gir1.2-gtk-4.0`.
 - The enabled **Ubuntu AppIndicators** extension for the tray icon.
-- `xdotool` only for the optional `--x11` mode.
+- `xdotool` for restoring saved window positions (the default XWayland mode).
 
 ## Run from source
 
 ```bash
-sudo apt install python3-gi gir1.2-gtk-4.0
+sudo apt install python3-gi gir1.2-gtk-4.0 xdotool
 python3 tacklet.py
 ```
 
-To run through XWayland and restore exact window coordinates:
+Tacklet uses XWayland by default, while your GNOME desktop remains a Wayland
+session. This is intentional: it restores every note to its saved screen
+position after `Alt+S` and after restarting the application.
+
+To explicitly use the native Wayland backend instead:
 
 ```bash
-sudo apt install xdotool
-python3 tacklet.py --x11
+python3 tacklet.py --wayland
 ```
 
 ## Install locally
@@ -54,10 +57,12 @@ The installer is user-local and does not need `sudo`. Notes are stored in
 ## Wayland limitation
 
 GNOME Wayland intentionally does not let ordinary applications set absolute
-window positions or force an always-on-top state. Tacklet saves text, size,
-appearance, text formatting, and visibility in native Wayland mode; `--x11`
-provides exact position restoration. A fully native solution for those two
-capabilities requires a separate GNOME Shell extension.
+window positions or force an always-on-top state. For dependable sticky-note
+placement, Tacklet defaults to XWayland (`--x11`). This does not switch the
+desktop away from Wayland; it only gives Tacklet an X11 surface. Native
+Wayland mode (`--wayland`) saves text, size, appearance, text formatting, and
+visibility, but its compositor chooses the position. A fully native solution
+for exact placement requires a GNOME Shell extension.
 
 ## Development
 

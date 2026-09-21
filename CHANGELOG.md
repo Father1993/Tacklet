@@ -4,6 +4,9 @@ All notable changes to Tacklet are documented in this file.
 
 ## Unreleased
 
+- Start through XWayland by default so note positions restore reliably after
+  `Alt+S` and application restarts; add `--wayland` to opt into native Wayland.
+
 ### Added
 
 - `Alt+V` global shortcut to create a note from clipboard text.
