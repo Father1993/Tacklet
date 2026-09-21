@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tacklet"
-version = "0.1.1"
+version = "0.1.2"
 description = "Fast, private sticky notes for Ubuntu GNOME"
 readme = "README.md"
 requires-python = ">=3.10"

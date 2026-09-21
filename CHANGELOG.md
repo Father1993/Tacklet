@@ -4,10 +4,16 @@ All notable changes to Tacklet are documented in this file.
 
 ## Unreleased
 
+## 0.1.2 — 2026-09-21
+
+### Fixed
+
 - Save each note's real XWayland geometry immediately before `Alt+S` hides it
   and restore after the surface is mapped, preventing a centred reappearance.
 - Start through XWayland by default so note positions restore reliably after
   `Alt+S` and application restarts; add `--wayland` to opt into native Wayland.
+- Export the Canonical DBusMenu interface required by Ubuntu AppIndicators, so
+  a right-click on the tray icon opens Tacklet's menu again.
 
 ### Added
 
