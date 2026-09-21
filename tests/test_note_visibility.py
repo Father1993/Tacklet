@@ -4,10 +4,20 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from gi.repository import Gtk
+
 from sticky.note_window import NoteWindow
 
 
 class NoteVisibilityTests(unittest.TestCase):
+    def test_compact_header_button_has_an_explicit_symbolic_image(self):
+        button = NoteWindow._mk_icon_button('list-add-symbolic', 'Добавить', lambda: None)
+        image = button.get_child()
+
+        self.assertIsInstance(image, Gtk.Image)
+        self.assertEqual(image.get_icon_name(), 'list-add-symbolic')
+        self.assertEqual(image.get_pixel_size(), 16)
+
     def test_hiding_captures_geometry_before_unmapping(self):
         events = []
         fake_window = SimpleNamespace(

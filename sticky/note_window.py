@@ -74,7 +74,12 @@ class NoteWindow(Gtk.ApplicationWindow):
     @staticmethod
     def _mk_icon_button(icon, tip, handler):
         btn = Gtk.Button()
-        btn.set_icon_name(icon)
+        # GTK 4 no longer supports the old automatic button-image API.
+        # Keep the image as an explicit child so symbolic icons render in a
+        # custom Gtk.WindowHandle titlebar too.
+        image = Gtk.Image.new_from_icon_name(icon)
+        image.set_pixel_size(16)
+        btn.set_child(image)
         btn.set_tooltip_text(tip)
         btn.add_css_class('note-header-button')
         btn.connect('clicked', handler)

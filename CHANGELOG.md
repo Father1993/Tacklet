@@ -4,6 +4,13 @@ All notable changes to Tacklet are documented in this file.
 
 ## Unreleased
 
+## 0.1.5 — 2026-09-21
+
+### Fixed
+
+- Use explicit GTK4 image children for the compact-header buttons so their
+  symbolic icons render correctly in a custom titlebar.
+
 ## 0.1.4 — 2026-09-21
 
 ### Added
