@@ -4,6 +4,7 @@ All notable changes to Tacklet are documented in this file.
 
 ## Unreleased
 
+- Restore the contrast of symbolic action icons in the compact note header.
 - Make the note header a 32 px draggable toolbar with clearer add, Settings,
   and delete icons.
 
