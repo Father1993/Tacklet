@@ -11,6 +11,7 @@ from .hotkey import (GnomeShortcut, new_note_from_clipboard_command,
                      toggle_command)
 from .note_window import NoteWindow
 from .settings_dialog import SettingsDialog
+from .trash_dialog import TrashDialog
 from .tray import StatusNotifierItem
 
 
@@ -21,11 +22,13 @@ class StickyApp(Gtk.Application):
 
         self.config = storage.AppConfig()
         self.notes = []
+        self.trash = []
 
         self._save_timer = None
         self._hotkey = GnomeShortcut(toggle_command(launcher_path),
                                      new_note_from_clipboard_command())
         self._settings = None
+        self._trash_dialog = None
         self._tray = None
 
         quit_action = Gio.SimpleAction.new('quit', None)
@@ -76,6 +79,7 @@ class StickyApp(Gtk.Application):
         state = storage.load()
         self.config = state.config
         self.notes = state.notes
+        self.trash = state.trash
 
         for note in self.notes:
             NoteWindow(self, note)
@@ -101,10 +105,11 @@ class StickyApp(Gtk.Application):
             (2, 'Новая заметка', self.new_note),
             (3, 'Новая заметка из буфера (Alt+V)', self.new_note_from_clipboard),
             (4, 'Настройки', self.open_settings),
-            (5, 'Импортировать заметки…', self.import_notes),
-            (6, 'Экспортировать заметки…', self.export_notes),
-            (7, '---', None),
-            (8, 'Завершить программу', self.quit_tray),
+            (5, 'Корзина…', self.open_trash),
+            (6, 'Импортировать заметки…', self.import_notes),
+            (7, 'Экспортировать заметки…', self.export_notes),
+            (8, '---', None),
+            (9, 'Завершить программу', self.quit_tray),
         ])
         self._tray.start()
 
@@ -130,7 +135,8 @@ class StickyApp(Gtk.Application):
             destination = dialog.get_file().get_path()
             if destination:
                 try:
-                    storage.export_file(destination, storage.AppState(self.config, self.notes))
+                    storage.export_file(destination,
+                                        storage.AppState(self.config, self.notes, self.trash))
                 except OSError as exc:
                     self._show_file_error('Не удалось экспортировать заметки.', exc)
         dialog.destroy()
@@ -148,19 +154,25 @@ class StickyApp(Gtk.Application):
             if source:
                 try:
                     imported = storage.load_file(source)
-                    self._add_imported_notes(imported.notes)
+                    self._add_imported_state(imported)
                 except ValueError as exc:
                     self._show_file_error(str(exc))
         dialog.destroy()
 
-    def _add_imported_notes(self, notes):
+    def _add_imported_state(self, imported):
         known_ids = {note.id for note in self.notes}
-        for note in notes:
+        known_ids.update(entry.note.id for entry in self.trash)
+        for note in imported.notes:
             while note.id in known_ids:
                 note.id = storage.NoteData().id
             known_ids.add(note.id)
             self.notes.append(note)
             self.restore_note(note)
+        for entry in imported.trash:
+            while entry.note.id in known_ids:
+                entry.note.id = storage.NoteData().id
+            known_ids.add(entry.note.id)
+            self.trash.append(entry)
         self.schedule_save()
 
     def _note_parent(self):
@@ -216,11 +228,37 @@ class StickyApp(Gtk.Application):
 
     def delete_note(self, window):
         if window.note in self.notes:
+            window.sync_to_note()
+            window.update_geometry_from_screen()
             self.notes.remove(window.note)
+            self.trash.append(storage.TrashEntry(window.note))
         window.destroy()
         if not self.notes:
             self.new_note()
         self.schedule_save()
+
+    def open_trash(self, parent=None, *_):
+        if self._trash_dialog is None:
+            self._trash_dialog = TrashDialog(self)
+        parent = parent or self._note_parent()
+        if parent is not None:
+            self._trash_dialog.set_transient_for(parent)
+        self._trash_dialog.refresh()
+        self._trash_dialog.present()
+
+    def restore_from_trash(self, entry):
+        if entry not in self.trash:
+            return
+        self.trash.remove(entry)
+        entry.note.hidden = False
+        self.notes.append(entry.note)
+        self.restore_note(entry.note)
+        self.schedule_save()
+
+    def remove_from_trash(self, entry):
+        if entry in self.trash:
+            self.trash.remove(entry)
+            self.schedule_save()
 
     def restore_note(self, note):
         window = NoteWindow(self, note)
@@ -294,7 +332,8 @@ class StickyApp(Gtk.Application):
             if note is not None:
                 window.sync_to_note()
                 window.update_geometry_from_screen()
-        storage.save(storage.AppState(self.config, self.notes))
+        self.trash[:] = storage.prune_trash(self.trash)
+        storage.save(storage.AppState(self.config, self.notes, self.trash))
         return GLib.SOURCE_REMOVE
 
     def _on_shutdown(self, *_):

@@ -4,6 +4,7 @@ import json
 import os
 import uuid
 import re
+from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -13,6 +14,7 @@ MIN_W, MIN_H = 180, 140
 DEFAULT_COLOR = '#fdf6d8'
 DEFAULT_OPACITY = 0.85
 DEFAULT_FONT = 14
+TRASH_RETENTION_DAYS = 30
 HEX_COLOR = re.compile(r'^#[0-9a-fA-F]{6}$')
 
 HOME = Path(os.environ.get('XDG_DATA_HOME', str(Path.home() / '.local/share')))
@@ -108,10 +110,42 @@ class AppConfig:
         return config
 
 
+def _utc_now():
+    return datetime.now(timezone.utc)
+
+
+@dataclass
+class TrashEntry:
+    """A deleted note retained locally for a limited recovery period."""
+
+    note: NoteData
+    deleted_at: str = field(default_factory=lambda: _utc_now().isoformat())
+
+    @classmethod
+    def from_dict(cls, data):
+        if not isinstance(data, dict) or not isinstance(data.get('note'), dict):
+            return None
+        timestamp = _parse_timestamp(data.get('deleted_at'))
+        if timestamp is None:
+            return None
+        return cls(note=NoteData.from_dict(data['note']),
+                   deleted_at=timestamp.isoformat())
+
+    def to_dict(self):
+        return {'note': self.note.to_dict(), 'deleted_at': self.deleted_at}
+
+    def is_expired(self, now=None):
+        timestamp = _parse_timestamp(self.deleted_at)
+        if timestamp is None:
+            return True
+        return timestamp + timedelta(days=TRASH_RETENTION_DAYS) <= (now or _utc_now())
+
+
 @dataclass
 class AppState:
     config: AppConfig = field(default_factory=AppConfig)
     notes: list = field(default_factory=list)
+    trash: list = field(default_factory=list)
 
 
 def load():
@@ -135,12 +169,18 @@ def load_file(source):
     if not isinstance(raw_notes, list):
         raise ValueError('В экспорте Tacklet отсутствует список заметок.')
     notes = [NoteData.from_dict(d) for d in raw_notes if isinstance(d, dict)]
-    return AppState(config=config, notes=notes)
+    raw_trash = raw.get('trash', [])
+    if not isinstance(raw_trash, list):
+        raw_trash = []
+    trash = [entry for entry in (TrashEntry.from_dict(item)
+             for item in raw_trash) if entry]
+    return AppState(config=config, notes=notes, trash=prune_trash(trash))
 
 
 def save(state):
     """Атомарно сохраняет состояние (пишет во временный файл, затем переименовывает)."""
     DATA_DIR.mkdir(parents=True, exist_ok=True)
+    state.trash[:] = prune_trash(state.trash)
     _write_payload(NOTES_FILE, _payload(state))
 
 
@@ -159,6 +199,7 @@ def _payload(state):
             'hotkey_enabled': state.config.hotkey_enabled,
         },
         'notes': [n.to_dict() for n in state.notes],
+        'trash': [entry.to_dict() for entry in prune_trash(state.trash)],
     }
 
 
@@ -180,6 +221,25 @@ def _as_int(value, default):
         return int(value)
     except (TypeError, ValueError):
         return default
+
+
+def _parse_timestamp(value):
+    if not isinstance(value, str):
+        return None
+    try:
+        timestamp = datetime.fromisoformat(value.replace('Z', '+00:00'))
+        if timestamp.tzinfo is None:
+            return None
+        return timestamp.astimezone(timezone.utc)
+    except ValueError:
+        return None
+
+
+def prune_trash(entries, now=None):
+    """Drop malformed and expired entries before they reach persistent data."""
+    current_time = now or _utc_now()
+    return [entry for entry in entries
+            if isinstance(entry, TrashEntry) and not entry.is_expired(current_time)]
 
 
 def _as_float(value, default):

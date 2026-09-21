@@ -4,6 +4,13 @@ All notable changes to Tacklet are documented in this file.
 
 ## Unreleased
 
+## 0.1.4 — 2026-09-21
+
+### Added
+
+- A 30-day Trash for deleted notes, with restore and permanent-delete actions
+  available from Settings and the tray menu. Backups include recoverable notes.
+
 - Restore the contrast of symbolic action icons in the compact note header.
 - Make the note header a 32 px draggable toolbar with clearer add, Settings,
   and delete icons.

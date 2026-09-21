@@ -41,6 +41,7 @@ class SettingsDialog(Gtk.Window):
         self._build_font(box, app.config.font_size)
         self._build_color(box, app.config.color)
         self._build_hotkey(box, app.config.hotkey_enabled)
+        self._build_trash(box)
         self._build_import_export(box)
         self._build_actions(box)
 
@@ -130,6 +131,22 @@ class SettingsDialog(Gtk.Window):
         export_button = Gtk.Button(label='Экспортировать…')
         export_button.connect('clicked', lambda *_: self.app.export_notes(self))
         row.append(export_button)
+        box.append(row)
+
+    def _build_trash(self, box):
+        label = Gtk.Label(label='Корзина')
+        label.set_xalign(0)
+        box.append(label)
+
+        row = Gtk.Box(spacing=8)
+        hint = Gtk.Label(label='Удалённые заметки можно восстановить в течение 30 дней.')
+        hint.set_xalign(0)
+        hint.set_hexpand(True)
+        hint.set_wrap(True)
+        row.append(hint)
+        trash = Gtk.Button(label='Открыть корзину…')
+        trash.connect('clicked', lambda *_: self.app.open_trash(self))
+        row.append(trash)
         box.append(row)
 
     def _build_actions(self, box):

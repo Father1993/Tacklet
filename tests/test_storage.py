@@ -75,6 +75,17 @@ class StorageTests(unittest.TestCase):
         note = NoteData.from_dict({'title': '  План  '})
         self.assertEqual(note.title, 'План')
 
+    def test_export_preserves_recoverable_trash(self):
+        with tempfile.TemporaryDirectory() as directory:
+            destination = Path(directory) / 'tacklet-backup.json'
+            original = storage.AppState(trash=[storage.TrashEntry(
+                note=NoteData(title='Удалённая'),
+            )])
+            storage.export_file(destination, original)
+            restored = storage.load_file(destination)
+
+        self.assertEqual(restored.trash[0].note.title, 'Удалённая')
+
 
 if __name__ == '__main__':
     unittest.main()
