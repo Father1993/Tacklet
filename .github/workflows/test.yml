@@ -35,7 +35,7 @@ jobs:
       - name: Install package build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --yes debhelper-compat dh-python lintian desktop-file-utils \
+          sudo apt-get install --yes build-essential debhelper-compat dh-python lintian desktop-file-utils \
             python3-gi gir1.2-gtk-4.0 xdotool
       - name: Build and validate Debian package
         run: |
