@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tacklet"
-version = "0.1.6"
+version = "0.2.0"
 description = "Fast, private sticky notes for Ubuntu GNOME"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [{name = "Tacklet contributors"}]
 classifiers = [
-  "Development Status :: 3 - Alpha",
+  "Development Status :: 5 - Production/Stable",
   "Environment :: X11 Applications :: GTK",
   "Intended Audience :: End Users/Desktop",
   "License :: OSI Approved :: MIT License",

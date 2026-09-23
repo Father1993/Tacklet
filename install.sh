@@ -1,26 +1,35 @@
 #!/usr/bin/env bash
-# Установка Tacklet в ~/.local (без sudo).
-set -e
+# Install Tacklet for this user without sudo, keeping notes separate from code.
+set -euo pipefail
 
-SRC="$(cd "$(dirname "$0")" && pwd)"
-DEST="$HOME/.local/share/tacklet"
-BIN="$HOME/.local/bin"
-APPS="$HOME/.local/share/applications"
+SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_DIR="${HOME}/.local/lib/tacklet"
+BIN_DIR="${HOME}/.local/bin"
+APPLICATIONS_DIR="${XDG_DATA_HOME:-${HOME}/.local/share}/applications"
+OLD_APP_DIR="${XDG_DATA_HOME:-${HOME}/.local/share}/tacklet"
+DESKTOP_FILE="${APPLICATIONS_DIR}/io.github.father1993.Tacklet.desktop"
 
-mkdir -p "$DEST" "$BIN" "$APPS"
+if ! python3 "${SOURCE_DIR}/tacklet.py" --diagnose; then
+    echo >&2
+    echo "Tacklet was not installed: fix the errors above and run ./install.sh again." >&2
+    exit 1
+fi
 
-cp -r "$SRC/sticky" "$SRC/tacklet.py" "$DEST/"
-chmod +x "$DEST/tacklet.py"
+mkdir -p "${APP_DIR}" "${BIN_DIR}" "${APPLICATIONS_DIR}"
+cp -R "${SOURCE_DIR}/sticky" "${SOURCE_DIR}/tacklet.py" \
+    "${SOURCE_DIR}/tacklet-update.py" "${APP_DIR}/"
+chmod +x "${APP_DIR}/tacklet.py" "${APP_DIR}/tacklet-update.py"
 
-ln -sf "$DEST/tacklet.py" "$BIN/tacklet"
+ln -sfn "${APP_DIR}/tacklet.py" "${BIN_DIR}/tacklet"
+ln -sfn "${APP_DIR}/tacklet-update.py" "${BIN_DIR}/tacklet-update"
 
-cat > "$APPS/io.github.father1993.Tacklet.desktop" <<EOF
+cat > "${DESKTOP_FILE}" <<EOF
 [Desktop Entry]
 Name=Tacklet
 Name[ru]=Tacklet — заметки
-Comment=Lightweight desktop sticky notes
-Comment[ru]=Лёгкие заметки для рабочего стола
-Exec=$DEST/tacklet.py --x11
+Comment=Fast, private sticky notes
+Comment[ru]=Быстрые приватные заметки
+Exec=${BIN_DIR}/tacklet --x11
 Icon=accessories-text-editor
 Terminal=false
 Type=Application
@@ -28,11 +37,16 @@ Categories=Utility;TextEditor;
 StartupNotify=false
 EOF
 
-update-desktop-database "$APPS" >/dev/null 2>&1 || true
+# Versions before 0.2.0 placed program code next to notes. Remove only the
+# known code paths, never the directory or JSON data owned by the user.
+if [[ -f "${OLD_APP_DIR}/tacklet.py" ]] && grep -q 'Tacklet' "${OLD_APP_DIR}/tacklet.py"; then
+    rm -rf "${OLD_APP_DIR}/sticky"
+    rm -f "${OLD_APP_DIR}/tacklet.py"
+fi
 
-echo "Tacklet установлен."
-echo "  Запуск из меню приложений или командой: tacklet"
-echo "  Позиции окон сохраняются: Tacklet запускается через XWayland по умолчанию"
-echo "  Нативный Wayland при необходимости: tacklet --wayland"
-echo "  Глобальная клавиша Alt+S (показ/скрытие всех заметок)"
-echo "  Данные: ~/.local/share/tacklet/notes.json"
+update-desktop-database "${APPLICATIONS_DIR}" >/dev/null 2>&1 || true
+
+echo "Tacklet installed for the current user."
+echo "  Start: tacklet"
+echo "  Update: tacklet-update (after installing the .deb package)"
+echo "  Notes preserved at: ${XDG_DATA_HOME:-${HOME}/.local/share}/tacklet/notes.json"

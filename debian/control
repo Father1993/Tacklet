@@ -1,0 +1,20 @@
+Source: tacklet
+Section: utils
+Priority: optional
+Maintainer: Tacklet contributors <opensource@tacklet.app>
+Build-Depends: debhelper-compat (= 13), dh-python, python3-gi, gir1.2-gtk-4.0 (>= 4.10)
+Standards-Version: 4.7.0
+Rules-Requires-Root: no
+Homepage: https://github.com/Father1993/Tacklet
+
+Package: tacklet
+Architecture: all
+Depends: ${misc:Depends}, python3 (>= 3.10), python3-gi, gir1.2-gtk-4.0 (>= 4.10), xdotool
+Suggests: gnome-shell-extension-appindicator
+Description: fast, private sticky notes for Ubuntu GNOME
+ Tacklet is a lightweight GTK 4 sticky-notes application. Notes, settings,
+ backups and deleted-note history stay in a private local JSON file.
+ .
+ Exact note positioning on GNOME Wayland is provided through XWayland and
+ xdotool. The tray indicator is available when the AppIndicators GNOME
+ extension is enabled.

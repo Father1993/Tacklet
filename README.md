@@ -6,7 +6,7 @@ Tacklet is a small GTK 4 application for keeping short notes visible while you
 work. It has no account, cloud service, or telemetry: notes stay in a local
 JSON file on your computer.
 
-**Status:** early alpha. Feedback and small, focused pull requests are welcome.
+**Status:** stable. Feedback and small, focused pull requests are welcome.
 
 ## Features
 
@@ -24,7 +24,7 @@ JSON file on your computer.
 ## Requirements
 
 - Ubuntu GNOME on Wayland.
-- Python 3.10+, `python3-gi`, and `gir1.2-gtk-4.0`.
+- Ubuntu 24.04+ (GTK 4.10+), Python 3.10+, `python3-gi`, and `gir1.2-gtk-4.0`.
 - The enabled **Ubuntu AppIndicators** extension for the tray icon.
 - `xdotool` for restoring saved window positions (the default XWayland mode).
 
@@ -52,9 +52,57 @@ python3 tacklet.py --wayland
 tacklet
 ```
 
-The installer is user-local and does not need `sudo`. Notes are stored in
-`~/.local/share/tacklet/notes.json`. On first run, data from
-`~/.local/share/sticky-notes/notes.json` is imported automatically.
+The installer is user-local and does not need `sudo`. It checks runtime
+dependencies before touching installed files. Program files live in
+`~/.local/lib/tacklet`; notes remain in `~/.local/share/tacklet/notes.json`.
+Older local installations are migrated without deleting notes.
+
+To remove this source installation while keeping notes:
+
+```bash
+./uninstall.sh
+```
+
+`./uninstall.sh --purge-data` intentionally deletes local notes as well.
+
+## Install the Debian package
+
+Download `tacklet_*_all.deb` from the latest
+[GitHub Release](https://github.com/Father1993/Tacklet/releases), then run:
+
+```bash
+sudo apt install ./tacklet_*_all.deb
+```
+
+The package installs its executable in `/usr/bin/tacklet` and declares GTK,
+PyGObject and XWayland-positioning dependencies. If an older source install is
+active, run `./uninstall.sh` first so its user-local launcher does not shadow
+the packaged command. Package removal keeps all notes and backups:
+
+```bash
+sudo apt remove tacklet
+```
+
+For a verified update from GitHub Releases, use:
+
+```bash
+tacklet-update
+```
+
+It downloads the latest `.deb`, checks it against the release `SHA256SUMS`,
+and only then asks `apt` to install it. A signed APT repository is intentionally
+not used yet, so ordinary `apt upgrade` cannot discover GitHub Releases.
+
+## Diagnose installation
+
+```bash
+tacklet --diagnose
+tacklet --version
+```
+
+Diagnostics report every required runtime component and show the exact apt
+command for a repair. The AppIndicators extension is optional but must be
+enabled in GNOME Extensions for a tray icon to be visible.
 
 ## Wayland limitation
 
@@ -71,6 +119,7 @@ for exact placement requires a GNOME Shell extension.
 ```bash
 python3 -m unittest discover -s tests -v
 python3 -m compileall -q sticky tacklet.py
+dpkg-buildpackage -us -uc -b
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution expectations and

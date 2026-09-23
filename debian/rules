@@ -1,0 +1,13 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@ --with python3
+
+override_dh_auto_build:
+	python3 -m compileall -q sticky tacklet.py tacklet-update.py
+
+override_dh_auto_test:
+	python3 -m unittest discover -s tests -v
+
+override_dh_auto_install:
+	:

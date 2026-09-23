@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Tacklet
+Name[ru]=Tacklet — заметки
+Comment=Fast, private sticky notes
+Comment[ru]=Быстрые приватные заметки
+Exec=tacklet --x11
+Icon=accessories-text-editor
+Terminal=false
+Type=Application
+Categories=Utility;TextEditor;
+StartupNotify=false

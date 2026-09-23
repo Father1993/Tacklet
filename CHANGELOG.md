@@ -4,6 +4,21 @@ All notable changes to Tacklet are documented in this file.
 
 ## Unreleased
 
+## 0.2.0 — 2026-09-23
+
+### Added
+
+- Debian `.deb` packaging with declared GTK, PyGObject and XWayland
+  dependencies, plus GitHub Release artifacts and SHA-256 checksums.
+- `tacklet --version` and `tacklet --diagnose` for actionable runtime checks.
+- `tacklet-update` to download, verify and install the latest GitHub Release.
+- Safe source-installer migration and `uninstall.sh`, which preserves notes by
+  default and requires an explicit `--purge-data` to remove them.
+
+### Changed
+
+- Mark the project as stable and require GTK 4.10+.
+
 ## 0.1.6 — 2026-09-21
 
 ### Fixed
