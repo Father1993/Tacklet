@@ -7,6 +7,7 @@ gi.require_version('Gdk', '4.0')
 gi.require_version('Gtk', '4.0')
 from gi.repository import GLib, Gdk, Gtk
 
+from .blocks import NoteBlocks
 from . import platform
 from .storage import MIN_H, MIN_W
 from .util import clamp, contrast_color
@@ -53,6 +54,13 @@ class NoteWindow(Gtk.ApplicationWindow):
             'add', 'Новая заметка',
             lambda *_: self.app.new_note()))
 
+        insert = Gtk.MenuButton()
+        insert.set_tooltip_text('Вставить code snippet или чек-лист')
+        insert.set_child(Gtk.Image.new_from_file(str(ICON_DIR / 'insert.svg')))
+        insert.add_css_class('note-header-button')
+        insert.set_popover(self._build_insert_popover())
+        header.append(insert)
+
         title = Gtk.Entry()
         title.set_text(self.note.title)
         title.set_placeholder_text('Название заметки')
@@ -74,6 +82,22 @@ class NoteWindow(Gtk.ApplicationWindow):
         handle.set_child(header)
         self.set_titlebar(handle)
 
+    def _build_insert_popover(self):
+        popover = Gtk.Popover()
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        box.set_margin_top(6)
+        box.set_margin_bottom(6)
+        box.set_margin_start(6)
+        box.set_margin_end(6)
+        code = Gtk.Button(label='Добавить code snippet')
+        code.connect('clicked', lambda *_: self._blocks.add_code())
+        checklist = Gtk.Button(label='Добавить чек-лист')
+        checklist.connect('clicked', lambda *_: self._blocks.add_checklist())
+        box.append(code)
+        box.append(checklist)
+        popover.set_child(box)
+        return popover
+
     @staticmethod
     def _mk_icon_button(icon, tip, handler):
         btn = Gtk.Button()
@@ -87,6 +111,9 @@ class NoteWindow(Gtk.ApplicationWindow):
         return btn
 
     def _build_body(self):
+        body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        body.set_margin_bottom(8)
+
         scrolled = Gtk.ScrolledWindow()
         scrolled.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
         scrolled.set_hexpand(True)
@@ -102,7 +129,13 @@ class NoteWindow(Gtk.ApplicationWindow):
         view.add_css_class('note-text')
 
         scrolled.set_child(view)
-        self.set_child(scrolled)
+        body.append(scrolled)
+
+        self._blocks = NoteBlocks(self.app, self.note)
+        self._blocks.set_margin_start(8)
+        self._blocks.set_margin_end(8)
+        body.append(self._blocks)
+        self.set_child(body)
 
         self._view = view
         self._buffer = view.get_buffer()
@@ -164,6 +197,26 @@ class NoteWindow(Gtk.ApplicationWindow):
             '  min-height: 24px;\n'
             '  padding: 0 5px;\n'
             '  font-weight: 600;\n'
+            '}\n'
+            '.note-blocks {\n'
+            '  margin-top: 2px;\n'
+            '}\n'
+            '.note-block {\n'
+            '  padding: 6px;\n'
+            '  border-radius: 8px;\n'
+            '  background-color: rgba(255, 255, 255, 0.14);\n'
+            '}\n'
+            '.note-block-header {\n'
+            '  min-height: 24px;\n'
+            '}\n'
+            '.note-block-title {\n'
+            '  font-weight: 600;\n'
+            '}\n'
+            '.note-code-scroll, .note-code, .note-code text {\n'
+            '  background-color: rgba(0, 0, 0, 0.14);\n'
+            '}\n'
+            '.note-checklist-row entry {\n'
+            '  min-height: 26px;\n'
             '}\n'
         )
         self._css.load_from_string(css)
@@ -285,6 +338,7 @@ class NoteWindow(Gtk.ApplicationWindow):
         end = self._buffer.get_end_iter()
         self.note.text = self._buffer.get_text(start, end, True)
         self.note.formats = self._collect_formats()
+        self._blocks.sync_to_note()
 
     def _restore_formats(self):
         for item in self.note.formats:

@@ -50,6 +50,18 @@ class TrashTests(unittest.TestCase):
         self.assertEqual(restored, [entry.note])
         self.assertFalse(entry.note.hidden)
 
+    def test_trash_keeps_embedded_blocks_for_recovery(self):
+        note = NoteData(blocks=[
+            {'id': 'code', 'kind': 'code', 'text': 'git status'},
+            {'id': 'checks', 'kind': 'checklist', 'items': [
+                {'id': 'ci', 'text': 'CI', 'checked': True},
+            ]},
+        ])
+        restored = TrashEntry.from_dict(TrashEntry(note).to_dict())
+
+        self.assertEqual(restored.note.blocks[0]['text'], 'git status')
+        self.assertTrue(restored.note.blocks[1]['items'][0]['checked'])
+
 
 if __name__ == '__main__':
     unittest.main()

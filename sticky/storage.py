@@ -40,6 +40,8 @@ class NoteData:
     hidden: bool = False
     # Локальные интервалы размера шрифта: [{start, end, font_size}].
     formats: list = field(default_factory=list)
+    # Дополнительные секции одной заметки: code и checklist.
+    blocks: list = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, data):
@@ -56,6 +58,7 @@ class NoteData:
             opacity=_as_float(data.get('opacity'), DEFAULT_OPACITY),
             hidden=bool(data.get('hidden', False)),
             formats=data.get('formats', []),
+            blocks=data.get('blocks', []),
         )
         note.normalize()
         return note
@@ -74,6 +77,7 @@ class NoteData:
             'opacity': self.opacity,
             'hidden': self.hidden,
             'formats': self.formats,
+            'blocks': self.blocks,
         }
 
     def normalize(self):
@@ -85,6 +89,7 @@ class NoteData:
         if not HEX_COLOR.fullmatch(self.color):
             self.color = DEFAULT_COLOR
         self.formats = _normalize_formats(self.formats, len(self.text))
+        self.blocks = normalize_blocks(self.blocks)
 
 
 @dataclass
@@ -191,7 +196,7 @@ def export_file(destination, state):
 
 def _payload(state):
     return {
-        'version': 1,
+        'version': 2,
         'config': {
             'opacity': state.config.opacity,
             'font_size': state.config.font_size,
@@ -262,4 +267,55 @@ def _normalize_formats(formats, text_length):
         size = clamp(_as_int(item.get('font_size'), DEFAULT_FONT), 6, 72)
         if end > start:
             result.append({'start': start, 'end': end, 'font_size': size})
+    return result
+
+
+def new_block(kind, text=''):
+    """Create a block in the portable JSON shape used by one note."""
+    block = {'id': uuid.uuid4().hex[:8], 'kind': kind}
+    if kind == 'code':
+        block['text'] = text
+    elif kind == 'checklist':
+        block['items'] = [new_checklist_item(text)]
+    return block
+
+
+def new_checklist_item(text=''):
+    return {'id': uuid.uuid4().hex[:8], 'text': text, 'checked': False}
+
+
+def normalize_blocks(blocks):
+    """Keep only safe, forward-compatible code and checklist blocks."""
+    if not isinstance(blocks, list):
+        return []
+    result = []
+    seen_ids = set()
+    for raw in blocks:
+        if not isinstance(raw, dict) or raw.get('kind') not in ('code', 'checklist'):
+            continue
+        block_id = str(raw.get('id') or uuid.uuid4().hex[:8])
+        while block_id in seen_ids:
+            block_id = uuid.uuid4().hex[:8]
+        seen_ids.add(block_id)
+        if raw['kind'] == 'code':
+            result.append({'id': block_id, 'kind': 'code',
+                           'text': str(raw.get('text') or '')})
+            continue
+        items = []
+        seen_item_ids = set()
+        raw_items = raw.get('items', [])
+        if isinstance(raw_items, list):
+            for raw_item in raw_items:
+                if not isinstance(raw_item, dict):
+                    continue
+                item_id = str(raw_item.get('id') or uuid.uuid4().hex[:8])
+                while item_id in seen_item_ids:
+                    item_id = uuid.uuid4().hex[:8]
+                seen_item_ids.add(item_id)
+                items.append({
+                    'id': item_id,
+                    'text': str(raw_item.get('text') or ''),
+                    'checked': raw_item.get('checked') is True,
+                })
+        result.append({'id': block_id, 'kind': 'checklist', 'items': items})
     return result

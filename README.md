@@ -18,6 +18,8 @@ JSON file on your computer.
 - Safe local persistence: atomic writes, private file permissions, and
   migration from the former `sticky-notes` data directory.
 - Native GTK text selection and context menu for copy/paste.
+- Code snippets with monospaced editing, preserved indentation and one-click copy.
+- Interactive checklists alongside the main text of any note.
 - Import and export portable JSON backups from the tray menu or Settings.
 - Deleted notes move to a local Trash for 30 days and can be restored.
 

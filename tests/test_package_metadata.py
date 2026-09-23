@@ -19,3 +19,8 @@ class PackageMetadataTests(unittest.TestCase):
         install = (ROOT / 'debian/tacklet.install').read_text(encoding='utf-8')
         self.assertIn('debian/scripts/tacklet usr/bin', install)
         self.assertIn('debian/scripts/tacklet-update usr/bin', install)
+
+    def test_package_includes_embedded_block_code_and_icons(self):
+        install = (ROOT / 'debian/tacklet.install').read_text(encoding='utf-8')
+        self.assertIn('sticky/*.py usr/lib/tacklet/sticky', install)
+        self.assertIn('sticky/icons/*.svg usr/lib/tacklet/sticky/icons', install)

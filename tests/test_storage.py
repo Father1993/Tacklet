@@ -86,6 +86,38 @@ class StorageTests(unittest.TestCase):
 
         self.assertEqual(restored.trash[0].note.title, 'Удалённая')
 
+    def test_legacy_note_without_blocks_remains_a_plain_note(self):
+        note = NoteData.from_dict({'text': 'старый формат'})
+        self.assertEqual(note.blocks, [])
+
+    def test_code_and_checklist_blocks_survive_export(self):
+        with tempfile.TemporaryDirectory() as directory:
+            destination = Path(directory) / 'tacklet-backup.json'
+            note = NoteData(text='Деплой', blocks=[
+                {'id': 'code1', 'kind': 'code', 'text': 'docker compose up\n  --detach'},
+                {'id': 'list1', 'kind': 'checklist', 'items': [
+                    {'id': 'item1', 'text': 'Проверить CI', 'checked': True},
+                ]},
+            ])
+            storage.export_file(destination, storage.AppState(notes=[note]))
+            restored = storage.load_file(destination).notes[0]
+
+        self.assertEqual(restored.blocks[0]['text'], 'docker compose up\n  --detach')
+        self.assertTrue(restored.blocks[1]['items'][0]['checked'])
+
+    def test_unsafe_blocks_are_discarded_and_checklist_is_normalized(self):
+        note = NoteData.from_dict({'blocks': [
+            {'kind': 'unknown'},
+            {'id': 'list', 'kind': 'checklist', 'items': [
+                {'id': 'one', 'text': 42, 'checked': 'yes'},
+                'not an item',
+            ]},
+        ]})
+        self.assertEqual(note.blocks, [{
+            'id': 'list', 'kind': 'checklist',
+            'items': [{'id': 'one', 'text': '42', 'checked': False}],
+        }])
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -4,6 +4,13 @@ All notable changes to Tacklet are documented in this file.
 
 ## Unreleased
 
+## 0.3.0 — 2026-09-23
+
+### Added
+
+- Embed multiple code snippets and interactive checklists inside any note.
+- Code snippets preserve plain-text indentation and include a Copy action.
+
 ## 0.2.0 — 2026-09-23
 
 ### Added

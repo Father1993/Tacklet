@@ -1,5 +1,5 @@
-tacklet (0.2.0-1) stable; urgency=medium
+tacklet (0.3.0-1) stable; urgency=medium
 
-  * Add Debian package distribution, diagnostics and verified updates.
+  * Add embedded code snippets and interactive checklist blocks.
 
  -- Tacklet contributors <opensource@tacklet.app>  Wed, 23 Sep 2026 10:00:00 +1000
