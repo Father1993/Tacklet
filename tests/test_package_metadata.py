@@ -17,5 +17,5 @@ class PackageMetadataTests(unittest.TestCase):
 
     def test_package_installs_both_public_commands(self):
         install = (ROOT / 'debian/tacklet.install').read_text(encoding='utf-8')
-        self.assertIn('debian/tacklet usr/bin', install)
+        self.assertIn('debian/tacklet-wrapper usr/bin/tacklet', install)
         self.assertIn('debian/tacklet-update usr/bin', install)

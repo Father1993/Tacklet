@@ -1,6 +1,6 @@
 tacklet.py usr/lib/tacklet
 tacklet-update.py usr/lib/tacklet
 sticky usr/lib/tacklet
-debian/tacklet usr/bin
+debian/tacklet-wrapper usr/bin/tacklet
 debian/tacklet-update usr/bin
 debian/io.github.father1993.Tacklet.desktop usr/share/applications
