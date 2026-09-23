@@ -1,6 +1,7 @@
 tacklet.py usr/lib/tacklet
 tacklet-update.py usr/lib/tacklet
-sticky usr/lib/tacklet
-debian/tacklet-wrapper usr/bin/tacklet
-debian/tacklet-update usr/bin
+sticky/*.py usr/lib/tacklet/sticky
+sticky/icons/*.svg usr/lib/tacklet/sticky/icons
+debian/scripts/tacklet usr/bin
+debian/scripts/tacklet-update usr/bin
 debian/io.github.father1993.Tacklet.desktop usr/share/applications

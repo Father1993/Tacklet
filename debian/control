@@ -2,7 +2,7 @@ Source: tacklet
 Section: utils
 Priority: optional
 Maintainer: Tacklet contributors <opensource@tacklet.app>
-Build-Depends: debhelper-compat (= 13), dh-python, python3-gi, gir1.2-gtk-4.0 (>= 4.10)
+Build-Depends: debhelper-compat (= 13), python3-gi, gir1.2-gtk-4.0 (>= 4.10)
 Standards-Version: 4.7.0
 Rules-Requires-Root: no
 Homepage: https://github.com/Father1993/Tacklet
