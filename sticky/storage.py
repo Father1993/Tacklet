@@ -2,6 +2,7 @@
 
 import json
 import os
+import tempfile
 import uuid
 import re
 from datetime import datetime, timedelta, timezone
@@ -153,13 +154,27 @@ class AppState:
     trash: list = field(default_factory=list)
 
 
+class NotesLoadError(ValueError):
+    def __init__(self, source):
+        self.source = source
+        super().__init__(f'Не удалось прочитать заметки из {source}')
+
+
 def load():
-    """Читает состояние из файла. При любой ошибке возвращает пустое состояние."""
-    source = NOTES_FILE if NOTES_FILE.exists() else LEGACY_NOTES_FILE
-    try:
-        return load_file(source)
-    except ValueError:
-        return AppState()
+    """Read current or legacy notes. Only a missing store is a first launch."""
+    for source in (NOTES_FILE, LEGACY_NOTES_FILE):
+        try:
+            return load_file(source)
+        except ValueError as exc:
+            if isinstance(exc.__cause__, FileNotFoundError) and not source.is_symlink():
+                continue
+            raise NotesLoadError(source) from exc
+    return AppState()
+
+
+def new_recovery_path():
+    return NOTES_FILE.with_name(f'notes-recovery-{uuid.uuid4().hex}.json')
+
 
 def load_file(source):
     """Read a Tacklet export and return normalized state or raise ValueError."""
@@ -182,11 +197,10 @@ def load_file(source):
     return AppState(config=config, notes=notes, trash=prune_trash(trash))
 
 
-def save(state):
+def save(state, *, destination=None):
     """Атомарно сохраняет состояние (пишет во временный файл, затем переименовывает)."""
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
     state.trash[:] = prune_trash(state.trash)
-    _write_payload(NOTES_FILE, _payload(state))
+    _write_payload(destination if destination is not None else NOTES_FILE, _payload(state))
 
 
 def export_file(destination, state):
@@ -210,15 +224,20 @@ def _payload(state):
 
 def _write_payload(destination, payload):
     destination.parent.mkdir(parents=True, exist_ok=True)
-    tmp = destination.with_name(f'.{destination.name}.tmp')
-    # Не оставляем читаемый всем пользователям временный файл и подтверждаем
-    # запись на диск до атомарного rename: заметки переживают внезапный выход.
-    with open(tmp, 'w', encoding='utf-8') as handle:
-        os.fchmod(handle.fileno(), 0o600)
-        json.dump(payload, handle, ensure_ascii=False, indent=2)
-        handle.flush()
-        os.fsync(handle.fileno())
-    os.replace(tmp, destination)
+    tmp = None
+    try:
+        # NamedTemporaryFile creates a private file before any data is written.
+        with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', delete=False,
+                                         dir=destination.parent) as handle:
+            tmp = Path(handle.name)
+            os.fchmod(handle.fileno(), 0o600)
+            json.dump(payload, handle, ensure_ascii=False, indent=2)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp, destination)
+    finally:
+        if tmp is not None:
+            tmp.unlink(missing_ok=True)
 
 
 def _as_int(value, default):

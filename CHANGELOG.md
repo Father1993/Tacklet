@@ -4,6 +4,20 @@ All notable changes to Tacklet are documented in this file.
 
 ## Unreleased
 
+## 0.3.2 — 2026-11-24
+
+### Fixed
+
+- Keep unreadable notes files intact and save new work to a private,
+  importable recovery file.
+- Fix code snippet Copy through the GTK Python clipboard API.
+- Restore tray registration on Ubuntu 24.04 and allow note styling on GTK 4.10.
+- Cancel pending autosave when exporting so the same edit is saved only once.
+
+### Changed
+
+- Add and remove code cards and checklist rows without rebuilding their neighbors.
+
 ## 0.3.1 — 2026-11-24
 
 ### Fixed

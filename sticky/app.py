@@ -1,5 +1,7 @@
 """Основное Gtk-приложение: управление заметками, хоткеем, треем и сохранением."""
 
+from pathlib import Path
+
 import gi
 
 gi.require_version('Gdk', '4.0')
@@ -25,6 +27,8 @@ class StickyApp(Gtk.Application):
         self.trash = []
 
         self._save_timer = None
+        self._unreadable_notes = None
+        self._recovery_path = None
         self._hotkey = GnomeShortcut(toggle_command(launcher_path),
                                      new_note_from_clipboard_command())
         self._settings = None
@@ -76,7 +80,12 @@ class StickyApp(Gtk.Application):
                     window.show_note()
             return
 
-        state = storage.load()
+        try:
+            state = storage.load()
+        except storage.NotesLoadError as exc:
+            self._unreadable_notes = exc.source
+            self._recovery_path = storage.new_recovery_path()
+            state = storage.AppState()
         self.config = state.config
         self.notes = state.notes
         self.trash = state.trash
@@ -95,6 +104,11 @@ class StickyApp(Gtk.Application):
         if self.config.hotkey_enabled:
             self._hotkey.enable()
         self.schedule_save()
+        if self._recovery_path is not None:
+            self._show_file_error(
+                f'Не удалось загрузить заметки из {self._unreadable_notes}.\n\n'
+                f'Заметки этой сессии сохраняются в {self._recovery_path}. '
+                'Этот файл можно открыть через «Импортировать заметки».')
 
     def _start_tray(self):
         if self._tray is not None:
@@ -135,9 +149,13 @@ class StickyApp(Gtk.Application):
             destination = dialog.get_file().get_path()
             if destination:
                 try:
-                    storage.export_file(destination,
-                                        storage.AppState(self.config, self.notes, self.trash))
-                except OSError as exc:
+                    if (self._unreadable_notes is not None
+                            and Path(destination).resolve() == self._unreadable_notes.resolve()):
+                        self._show_file_error('Выберите другой файл, чтобы сохранить исходные заметки.')
+                    else:
+                        storage.export_file(destination,
+                                            storage.AppState(self.config, self.notes, self.trash))
+                except (OSError, RuntimeError) as exc:
                     self._show_file_error('Не удалось экспортировать заметки.', exc)
         dialog.destroy()
 
@@ -327,25 +345,32 @@ class StickyApp(Gtk.Application):
 
     def schedule_save(self):
         """Сохраняет с задержкой, чтобы не писать файл на каждое нажатие."""
-        if self._save_timer is not None:
-            GLib.source_remove(self._save_timer)
-        self._save_timer = GLib.timeout_add(500, self._flush_save)
+        self._cancel_save()
+        self._save_timer = GLib.timeout_add(500, self._save_on_timeout)
 
-    def _flush_save(self):
-        self._save_timer = None
-        for window in self.get_windows():
-            note = getattr(window, 'note', None)
-            if note is not None:
-                window.sync_to_note()
-                window.update_geometry_from_screen()
-        self.trash[:] = storage.prune_trash(self.trash)
-        storage.save(storage.AppState(self.config, self.notes, self.trash))
-        return GLib.SOURCE_REMOVE
-
-    def _on_shutdown(self, *_):
+    def _cancel_save(self):
         if self._save_timer is not None:
             GLib.source_remove(self._save_timer)
             self._save_timer = None
+
+    def _save_on_timeout(self):
+        self._save_timer = None
+        self._flush_save()
+        return GLib.SOURCE_REMOVE
+
+    def _flush_save(self):
+        self._cancel_save()
+        for window in self._note_windows():
+            window.sync_to_note()
+            window.update_geometry_from_screen()
+        try:
+            storage.save(storage.AppState(self.config, self.notes, self.trash),
+                         destination=self._recovery_path)
+        except OSError as exc:
+            self._show_file_error('Не удалось сохранить заметки.', exc)
+
+    def _on_shutdown(self, *_):
+        if self._save_timer is not None:
             self._flush_save()
         self._stop_tray()
         if self._held:

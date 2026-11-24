@@ -99,10 +99,10 @@ class StatusNotifierItem:
         if not self._has_watcher():
             print('[tray] индикатор в трее недоступен (нет StatusNotifierWatcher)')
             return False
-        self._export_sni()
-        self._export_menu()
-        self._export_properties(SNI_PATH)
-        self._export_properties(MENU_PATH)
+        self._export_interface(SNI_PATH, SNI_XML, self._on_sni_call)
+        self._export_interface(MENU_PATH, MENU_XML, self._on_menu_call)
+        self._export_interface(SNI_PATH, PROPS_XML, self._on_props_call)
+        self._export_interface(MENU_PATH, PROPS_XML, self._on_props_call)
         self._own_name()
         self._register()
         self.registered = True
@@ -158,21 +158,11 @@ class StatusNotifierItem:
         except GLib.Error as exc:
             print('[tray] RegisterStatusNotifierItem:', exc)
 
-    def _export_sni(self):
-        node = Gio.DBusNodeInfo.new_for_xml(SNI_XML)
-        self.conn.register_object_with_closures2(
-            SNI_PATH, node.interfaces[0], self._on_sni_call, None, None)
-
-    def _export_menu(self):
-        node = Gio.DBusNodeInfo.new_for_xml(MENU_XML)
-        self.conn.register_object_with_closures2(
-            MENU_PATH, node.interfaces[0], self._on_menu_call, None, None)
-
-    def _export_properties(self, path):
-        node = Gio.DBusNodeInfo.new_for_xml(PROPS_XML)
-        self.conn.register_object_with_closures2(
-            path, node.interfaces[0], self._on_props_call, None, None)
-        # props_fn возвращает словарь свойств интерфейса SNI/menu
+    def _export_interface(self, path, xml, handler):
+        node = Gio.DBusNodeInfo.new_for_xml(xml)
+        # Ubuntu 24.04 has GLib 2.80. Prefer the newer closure API where available.
+        register = getattr(self.conn, 'register_object_with_closures2', self.conn.register_object)
+        register(path, node.interfaces[0], handler, None, None)
 
     def _on_props_call(self, connection, sender, object_path, iface_name,
                        method_name, parameters, invocation):

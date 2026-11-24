@@ -10,7 +10,7 @@ from sticky.blocks import ChecklistBlock, CodeBlock
 
 class BlocksTests(unittest.TestCase):
     def test_copy_uses_the_gtk_clipboard_for_this_code_block(self):
-        clipboard = SimpleNamespace(set_text=lambda text: setattr(clipboard, 'text', text))
+        clipboard = SimpleNamespace(set=lambda text: setattr(clipboard, 'text', text))
         display = SimpleNamespace(get_clipboard=lambda: clipboard)
         button = SimpleNamespace(set_label=lambda text: setattr(button, 'label', text))
         card = SimpleNamespace(block={'text': 'git status\n'}, _copy_button=button,
@@ -29,7 +29,7 @@ class BlocksTests(unittest.TestCase):
         events = []
         card = SimpleNamespace(
             block={'items': [first]},
-            _render_items=lambda: events.append('render'),
+            _insert_row=lambda item, after: events.append((item, after)),
             changed=lambda: events.append('save'),
             _focus_item=lambda _id: False,
         )
@@ -40,7 +40,7 @@ class BlocksTests(unittest.TestCase):
 
         self.assertTrue(handled)
         self.assertEqual(len(card.block['items']), 2)
-        self.assertEqual(events, ['render', 'save'])
+        self.assertEqual(events, [(card.block['items'][1], first), 'save'])
         idle.assert_called_once()
 
     def test_delete_removes_only_the_selected_checklist_item(self):
@@ -49,11 +49,13 @@ class BlocksTests(unittest.TestCase):
         events = []
         card = SimpleNamespace(
             block={'items': [first, second]},
-            _render_items=lambda: events.append('render'),
+            _item_widgets={'first': ('first row', None), 'second': ('second row', None)},
+            _rows=SimpleNamespace(remove=lambda row: events.append(row)),
             changed=lambda: events.append('save'),
         )
 
         ChecklistBlock._delete_item(card, first)
 
         self.assertEqual(card.block['items'], [second])
-        self.assertEqual(events, ['render', 'save'])
+        self.assertEqual(events, ['first row', 'save'])
+        self.assertEqual(list(card._item_widgets), ['second'])

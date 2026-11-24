@@ -17,39 +17,31 @@ class NoteBlocks(Gtk.Box):
         self.app = app
         self.note = note
         self.add_css_class('note-blocks')
-        self._render()
+        for block in self.note.blocks:
+            self._append_card(block)
 
     def add_code(self):
-        self.note.blocks.append(storage.new_block('code'))
-        self._render()
-        self.app.schedule_save()
+        self._add_block('code')
 
     def add_checklist(self):
-        self.note.blocks.append(storage.new_block('checklist'))
-        self._render()
+        self._add_block('checklist')
+
+    def _add_block(self, kind):
+        block = storage.new_block(kind)
+        self.note.blocks.append(block)
+        self._append_card(block)
         self.app.schedule_save()
 
-    def remove_block(self, block):
-        if block in self.note.blocks:
-            self.note.blocks.remove(block)
-            self._render()
-            self.app.schedule_save()
+    def remove_block(self, card):
+        self.note.blocks.remove(card.block)
+        self.remove(card)
+        self.app.schedule_save()
 
-    def sync_to_note(self):
-        """Cards update live data; retained for NoteWindow's save contract."""
-        return None
-
-    def _render(self):
-        child = self.get_first_child()
-        while child is not None:
-            next_child = child.get_next_sibling()
-            super().remove(child)
-            child = next_child
-        for block in self.note.blocks:
-            if block['kind'] == 'code':
-                self.append(CodeBlock(self, block))
-            elif block['kind'] == 'checklist':
-                self.append(ChecklistBlock(self, block))
+    def _append_card(self, block):
+        if block['kind'] == 'code':
+            self.append(CodeBlock(self, block))
+        elif block['kind'] == 'checklist':
+            self.append(ChecklistBlock(self, block))
 
 
 class _BlockCard(Gtk.Box):
@@ -72,7 +64,7 @@ class _BlockCard(Gtk.Box):
         delete = Gtk.Button(label='×')
         delete.set_tooltip_text('Удалить блок')
         delete.add_css_class('flat')
-        delete.connect('clicked', lambda *_: self.owner.remove_block(self.block))
+        delete.connect('clicked', lambda *_: self.owner.remove_block(self))
         header.append(delete)
 
     def changed(self):
@@ -120,7 +112,7 @@ class CodeBlock(_BlockCard):
         display = Gdk.Display.get_default()
         if display is None:
             return
-        display.get_clipboard().set_text(self.block['text'])
+        display.get_clipboard().set(self.block['text'])
         self._copy_button.set_label('Copied')
         GLib.timeout_add(1200, self._reset_copy_label)
 
@@ -133,7 +125,7 @@ class ChecklistBlock(_BlockCard):
     def __init__(self, owner, block):
         super().__init__(owner, block, 'Чек-лист')
         self._rows = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
-        self._entries = {}
+        self._item_widgets = {}
         self.append(self._rows)
 
         add = Gtk.Button(label='+ Пункт')
@@ -141,40 +133,39 @@ class ChecklistBlock(_BlockCard):
         add.add_css_class('flat')
         add.connect('clicked', lambda *_: self._add_item())
         self.append(add)
-        self._render_items()
-
-    def _render_items(self):
-        child = self._rows.get_first_child()
-        while child is not None:
-            next_child = child.get_next_sibling()
-            self._rows.remove(child)
-            child = next_child
-        self._entries = {}
         for item in self.block['items']:
-            row = Gtk.Box(spacing=4)
-            row.add_css_class('note-checklist-row')
-            check = Gtk.CheckButton()
-            check.set_active(item['checked'])
-            check.connect('toggled', self._on_toggled, item)
-            row.append(check)
+            self._insert_row(item)
 
-            entry = Gtk.Entry()
-            entry.set_text(item['text'])
-            entry.set_hexpand(True)
-            entry.set_placeholder_text('Пункт списка')
-            entry.connect('changed', self._on_text_changed, item)
-            key = Gtk.EventControllerKey()
-            key.connect('key-pressed', self._on_item_key, item)
-            entry.add_controller(key)
-            self._entries[item['id']] = entry
-            row.append(entry)
+    def _insert_row(self, item, after=None):
+        row = Gtk.Box(spacing=4)
+        row.add_css_class('note-checklist-row')
+        check = Gtk.CheckButton()
+        check.set_active(item['checked'])
+        check.connect('toggled', self._on_toggled, item)
+        row.append(check)
 
-            delete = Gtk.Button(label='×')
-            delete.set_tooltip_text('Удалить пункт')
-            delete.add_css_class('flat')
-            delete.connect('clicked', lambda *_args, current=item: self._delete_item(current))
-            row.append(delete)
+        entry = Gtk.Entry()
+        entry.set_text(item['text'])
+        entry.set_hexpand(True)
+        entry.set_placeholder_text('Пункт списка')
+        entry.connect('changed', self._on_text_changed, item)
+        key = Gtk.EventControllerKey()
+        key.connect('key-pressed', self._on_item_key, item)
+        entry.add_controller(key)
+        row.append(entry)
+
+        delete = Gtk.Button(label='×')
+        delete.set_tooltip_text('Удалить пункт')
+        delete.add_css_class('flat')
+        delete.connect('clicked', lambda *_: self._delete_item(item))
+        row.append(delete)
+
+        if after is None:
             self._rows.append(row)
+        else:
+            sibling, _ = self._item_widgets[after['id']]
+            self._rows.insert_child_after(row, sibling)
+        self._item_widgets[item['id']] = (row, entry)
 
     def _on_toggled(self, button, item):
         item['checked'] = button.get_active()
@@ -197,18 +188,20 @@ class ChecklistBlock(_BlockCard):
         else:
             index = self.block['items'].index(after)
             self.block['items'].insert(index + 1, item)
-        self._render_items()
+        self._insert_row(item, after)
         self.changed()
         GLib.idle_add(self._focus_item, item['id'])
 
     def _delete_item(self, item):
         if item in self.block['items']:
             self.block['items'].remove(item)
-            self._render_items()
+            row, _ = self._item_widgets.pop(item['id'])
+            self._rows.remove(row)
             self.changed()
 
     def _focus_item(self, item_id):
-        entry = self._entries.get(item_id)
-        if entry is not None:
+        widgets = self._item_widgets.get(item_id)
+        if widgets is not None:
+            _, entry = widgets
             entry.grab_focus()
         return GLib.SOURCE_REMOVE

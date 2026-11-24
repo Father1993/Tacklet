@@ -1,5 +1,13 @@
+tacklet (0.3.2-1) stable; urgency=medium
+
+  * Keep unreadable note files intact and save new work to a recovery file.
+  * Fix snippet copy and restore tray compatibility on Ubuntu 24.04.
+  * Avoid duplicate saves and preserve unaffected note and checklist widgets.
+
+ -- Tacklet contributors <opensource@tacklet.app>  Tue, 24 Nov 2026 17:01:49 +1000
+
 tacklet (0.3.1-1) stable; urgency=medium
 
   * Restrict show/hide all actions to note windows, excluding settings dialogs.
 
- -- Tacklet contributors <opensource@tacklet.app>  Mon, 24 Nov 2026 16:00:00 +1000
+ -- Tacklet contributors <opensource@tacklet.app>  Tue, 24 Nov 2026 16:00:00 +1000

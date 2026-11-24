@@ -24,8 +24,36 @@ jobs:
           python3 -m compileall -q sticky tacklet.py
           python3 -m unittest discover -s tests -v
 
+  desktop:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build and desktop test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes build-essential debhelper desktop-file-utils \
+            python3-gi gir1.2-gtk-4.0 xdotool dbus-daemon xvfb xauth
+      - name: Build and install the Debian package
+        run: |
+          dpkg-buildpackage -us -uc -b
+          sudo apt-get install --yes ../tacklet_*_all.deb
+          /usr/bin/tacklet --version
+          /usr/bin/tacklet --diagnose
+      - name: Check installed widgets and tray in an isolated desktop session
+        working-directory: ${{ runner.temp }}
+        env:
+          GDK_BACKEND: x11
+          GSETTINGS_BACKEND: memory
+          GTK_A11Y: none
+          PYTHONPATH: /usr/lib/tacklet
+          TACKLET_DESKTOP_TEST: '1'
+        run: |
+          export XDG_DATA_HOME="$(mktemp -d)"
+          dbus-run-session -- xvfb-run -a /usr/bin/python3 -m unittest discover \
+            -s "$GITHUB_WORKSPACE/tests" -p test_desktop_integration.py -v
+
   release:
-    needs: test
+    needs: [test, desktop]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:

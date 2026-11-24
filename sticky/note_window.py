@@ -219,7 +219,10 @@ class NoteWindow(Gtk.ApplicationWindow):
             '  min-height: 26px;\n'
             '}\n'
         )
-        self._css.load_from_string(css)
+        if hasattr(self._css, 'load_from_string'):
+            self._css.load_from_string(css)
+        else:
+            self._css.load_from_data(css.encode('utf-8'))
 
     def _font_family(self):
         if self._family is None:
@@ -338,7 +341,6 @@ class NoteWindow(Gtk.ApplicationWindow):
         end = self._buffer.get_end_iter()
         self.note.text = self._buffer.get_text(start, end, True)
         self.note.formats = self._collect_formats()
-        self._blocks.sync_to_note()
 
     def _restore_formats(self):
         for item in self.note.formats:
