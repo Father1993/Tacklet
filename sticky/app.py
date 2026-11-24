@@ -64,7 +64,7 @@ class StickyApp(Gtk.Application):
         self._held = True
 
     def do_activate(self):
-        note_windows = [w for w in self.get_windows() if hasattr(w, 'note')]
+        note_windows = self._note_windows()
         if note_windows:
             visible = [w for w in note_windows if not w.note.hidden]
             if visible:
@@ -176,8 +176,12 @@ class StickyApp(Gtk.Application):
         self.schedule_save()
 
     def _note_parent(self):
-        return next((window for window in self.get_windows()
-                     if hasattr(window, 'note')), None)
+        return next(iter(self._note_windows()), None)
+
+    def _note_windows(self):
+        """Return only note windows; settings and dialogs share the app list."""
+        return [window for window in self.get_windows()
+                if hasattr(window, 'note')]
 
     def _show_file_error(self, message, exc=None):
         if exc is not None:
@@ -269,35 +273,37 @@ class StickyApp(Gtk.Application):
     # ---- показ/скрытие по Alt+S -----------------------------------------
 
     def toggle_all(self):
-        windows = self.get_windows()
-        any_visible = any(getattr(w, 'note', None) and not w.note.hidden for w in windows)
+        windows = self._note_windows()
+        any_visible = any(not window.note.hidden for window in windows)
         if any_visible:
             for window in windows:
-                window.hide_note()
+                if not window.note.hidden:
+                    window.hide_note()
         else:
             for window in windows:
-                window.show_note()
+                if window.note.hidden:
+                    window.show_note()
         self.schedule_save()
 
     # ---- применение настроек ---------------------------------------------
 
     def apply_opacity(self, value):
         self.config.opacity = value
-        for window in self.get_windows():
+        for window in self._note_windows():
             window.note.opacity = value
             window.refresh_opacity()
         self.schedule_save()
 
     def apply_font_size(self, value):
         self.config.font_size = value
-        for window in self.get_windows():
+        for window in self._note_windows():
             window.note.font_size = value
             window._render_css()
         self.schedule_save()
 
     def apply_color(self, hex_color):
         self.config.color = hex_color
-        for window in self.get_windows():
+        for window in self._note_windows():
             window.note.color = hex_color
             window._render_css()
         self.schedule_save()
